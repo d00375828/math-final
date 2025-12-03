@@ -264,3 +264,48 @@ plt.xlabel("Current Streak Length")
 plt.ylabel("P(win next point)")
 plt.grid(True)
 plt.show()
+
+
+
+
+import numpy as np
+import pandas as pd
+import statsmodels.api as sm
+
+# -----------------------------------------------------
+# Load the Wimbledon data
+# -----------------------------------------------------
+wim = pd.read_csv("/Users/thegoat/Desktop/Math-2050/2024_MCM_Problem_C_Data/2024_Wimbledon_featured_matches.csv")
+
+# -----------------------------------------------------
+# 1. Keep only numeric columns
+# -----------------------------------------------------
+numeric_cols = wim.select_dtypes(include=[np.number]).columns.tolist()
+
+# Choose the target variable (what you want to predict)
+# You can change this to something else like 'rally_count' if needed
+y_var = 'point_victor'
+
+# Make sure the target is in the numeric columns
+if y_var not in numeric_cols:
+    raise ValueError(f"{y_var} is not numeric or not found in the dataframe.")
+
+# Predictor columns = all numeric columns except the target
+X_cols = [col for col in numeric_cols if col != y_var]
+
+# -----------------------------------------------------
+# 2. Build clean dataset with y and X, dropping rows with any missing values
+# -----------------------------------------------------
+data = wim[[y_var] + X_cols].dropna()
+
+y = data[y_var]
+X = data[X_cols]
+
+# -----------------------------------------------------
+# 3. Add constant and fit ONE OLS model
+# -----------------------------------------------------
+X_const = sm.add_constant(X)
+
+full_model = sm.OLS(y, X_const).fit()
+
+print(full_model.summary())
