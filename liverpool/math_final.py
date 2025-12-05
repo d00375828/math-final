@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.linear_model import LogisticRegression
+import statsmodels.api as sm
 
 # --------------------------------------------------------------------
 # LOAD DATA
@@ -10,8 +11,8 @@ from sklearn.linear_model import LogisticRegression
 
 
 # Update these paths to match your machine
-matches = pd.read_csv("/Users/thegoat/Desktop/Math-2050/2024_MCM_Problem_C_Data/2024_Wimbledon_featured_matches.csv")
-data_dict = pd.read_csv("/Users/thegoat/Desktop/Math-2050/2024_MCM_Problem_C_Data/2024_data_dictionary.csv")
+matches = pd.read_csv("../chinese_repo/Wimbledon_featured_matches.csv")
+data_dict = pd.read_csv("../chinese_repo/data_dictionary.csv")
 
 # --------------------------------------------------------------------
 # BASIC STRUCTURE + DICTIONARY
@@ -268,15 +269,14 @@ plt.show()
 
 
 
-import numpy as np
-import pandas as pd
-import statsmodels.api as sm
+
+
 
 # -----------------------------------------------------
 # Load the Wimbledon data
 # -----------------------------------------------------
-wim = pd.read_csv("/Users/thegoat/Desktop/Math-2050/2024_MCM_Problem_C_Data/2024_Wimbledon_featured_matches.csv")
-
+# wim = pd.read_csv("/Users/thegoat/Desktop/Math-2050/2024_MCM_Problem_C_Data/2024_Wimbledon_featured_matches.csv")
+wim = matches
 # -----------------------------------------------------
 # 1. Keep only numeric columns
 # -----------------------------------------------------
@@ -309,3 +309,114 @@ X_const = sm.add_constant(X)
 full_model = sm.OLS(y, X_const).fit()
 
 print(full_model.summary())
+
+
+
+
+# import pandas as pd
+# import numpy as np
+# from sklearn.linear_model import LogisticRegression
+# from sklearn.metrics import accuracy_score, confusion_matrix
+# import statsmodels.api as sm
+
+# ------------------------------------------------------
+# Load data
+# ------------------------------------------------------
+matches = pd.read_csv("../chinese_repo/Wimbledon_featured_matches.csv")
+
+# ------------------------------------------------------
+# Define the final match
+# ------------------------------------------------------
+final_id = "2023-wimbledon-1701"
+
+train_df = matches[matches["match_id"] != final_id].copy()
+test_df  = matches[matches["match_id"] == final_id].copy()
+
+# ------------------------------------------------------
+# Define binary target for logistic regression
+# ------------------------------------------------------
+train_df["y"] = (train_df["point_victor"] == 1).astype(int)
+test_df["y"]  = (test_df["point_victor"] == 1).astype(int)
+
+# ------------------------------------------------------
+# Choose predictor variables (no leakage!)
+# ------------------------------------------------------
+predictors = [
+    "server",              # 1 or 2 → convert to p1_serving later
+    "serve_no",
+    "rally_count",
+    "speed_mph",
+    "p1_ace","p2_ace",
+    "p1_winner","p2_winner",
+    "p1_unf_err","p2_unf_err",
+    "p1_double_fault","p2_double_fault",
+    "p1_distance_run","p2_distance_run",
+    "p1_break_pt","p2_break_pt"
+]
+
+# Keep only predictors that exist in the dataset
+predictors = [col for col in predictors if col in matches.columns]
+
+# ------------------------------------------------------
+# Prepare training data
+# ------------------------------------------------------
+train = train_df[["y"] + predictors].dropna().copy()
+test  = test_df[["y"] + predictors].dropna().copy()
+
+# Convert server → p1_serve indicator
+train["p1_serve"] = (train["server"] == 1).astype(int)
+test["p1_serve"]  = (test["server"] == 1).astype(int)
+
+train = train.drop(columns=["server"])
+test  = test.drop(columns=["server"])
+
+# X and y
+X_train = train.drop(columns=["y"])
+y_train = train["y"]
+
+X_test = test.drop(columns=["y"])
+y_test = test["y"]
+
+# ------------------------------------------------------
+# Step 1: Fit initial logistic model using statsmodels
+# ------------------------------------------------------
+X_train_sm = sm.add_constant(X_train)
+initial_model = sm.Logit(y_train, X_train_sm).fit()
+print(initial_model.summary())
+
+# ------------------------------------------------------
+# Step 2: Remove features with p > 0.05
+# ------------------------------------------------------
+significant_predictors = initial_model.pvalues[initial_model.pvalues < 0.05].index.tolist()
+
+# Remove constant if included
+significant_predictors = [p for p in significant_predictors if p != "const"]
+
+print("\nSignificant predictors:", significant_predictors)
+
+# ------------------------------------------------------
+# Step 3: Fit optimized logistic regression (sklearn)
+# ------------------------------------------------------
+log_reg = LogisticRegression(max_iter=500)
+log_reg.fit(X_train[significant_predictors], y_train)
+
+# ------------------------------------------------------
+# Step 4: Test on the withheld final match
+# ------------------------------------------------------
+y_pred = log_reg.predict(X_test[significant_predictors])
+
+acc = accuracy_score(y_test, y_pred)
+cm = confusion_matrix(y_test, y_pred)
+
+print("\n--- PERFORMANCE ON FINAL MATCH ---")
+print(f"Accuracy on final: {acc:.3f}")
+print("\nConfusion Matrix:")
+print(cm)
+
+# Optional: print coefficients
+coef_table = pd.DataFrame({
+    "predictor": significant_predictors,
+    "coef": log_reg.coef_[0]
+})
+print("\nOptimized model coefficients:")
+print(coef_table)
