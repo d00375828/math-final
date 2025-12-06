@@ -1,1 +1,20 @@
 Anything for the A
+
+Could you give me graphs and output to answer "Data Description" of the assignemnt description:
+
+"""
+Report should include (please check the papers I posted on canvas files for ideas):
+
+                                       abstract (you already have one, modify based on your current analysis)
+
+                                       Introduction or background 
+
+                                       Data description (visualization, numerical summary, CI, Hypothesis etc)
+
+                                       predictive model
+
+                                        Conclusion
+
+"""
+
+Do these things instead of the section that printed graphs related servring
